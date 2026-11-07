@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 
 function App() {
@@ -9,7 +9,14 @@ function App() {
     location: "",
   });
 
-  const [createdMeeting, setCreatedMeeting] = useState(null);
+  const [meetings, setMeetings] = useState([]);
+
+  useEffect(() => {
+    fetch("http://localhost:8080/api/meetings")
+      .then((response) => response.json())
+      .then((data) => setMeetings(data))
+      .catch((error) => console.error(error));
+  }, []);
 
   function handleChange(event) {
     setMeeting({
@@ -18,10 +25,30 @@ function App() {
     });
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    setCreatedMeeting(meeting);
-    setMeeting({ title: "", date: "", time: "", location: "" });
+
+    try {
+      const response = await fetch("http://localhost:8080/api/meetings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(meeting),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create meeting");
+      }
+
+      const savedMeeting = await response.json();
+
+      setMeetings([...meetings, savedMeeting]);
+      setMeeting({ title: "", date: "", time: "", location: "" });
+    } catch (error) {
+      alert("Could not create meeting. Check the backend.");
+      console.error(error);
+    }
   }
 
   return (
@@ -45,14 +72,17 @@ function App() {
         <button type="submit">Create Meeting</button>
       </form>
 
-      {createdMeeting && (
-        <section>
-          <h2>Meeting Created!</h2>
-          <p>{createdMeeting.title}</p>
-          <p>{createdMeeting.date} at {createdMeeting.time}</p>
-          <p>{createdMeeting.location}</p>
-        </section>
-      )}
+      <section>
+        <h2>All Club Meetings</h2>
+
+        {meetings.map((item) => (
+          <div key={item.id}>
+            <h3>{item.title}</h3>
+            <p>{item.date} at {item.time}</p>
+            <p>{item.location}</p>
+          </div>
+        ))}
+      </section>
     </main>
   );
 }
